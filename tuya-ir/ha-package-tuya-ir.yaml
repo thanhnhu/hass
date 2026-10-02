@@ -70,6 +70,14 @@ automation:
       # unit on *and* applies the right temperature. The standalone dieuhoa_bat frame
       # is stale as soon as the AC's state moves on, so it is deliberately not used.
       - action: tuya_ir.send_code
+        continue_on_error: true
+        data:
+          code: >
+            {{ 'dieuhoa_' ~ (states('input_number.dieuhoa_temp') | int) ~ 'c'
+               if is_state('input_boolean.dieuhoa_power', 'on') else 'dieuhoa_tat' }}
+      # Phát song song qua ESP32-S3
+      - action: esphome.esphome_web_5bc488_send_ir_code
+        continue_on_error: true
         data:
           code: >
             {{ 'dieuhoa_' ~ (states('input_number.dieuhoa_temp') | int) ~ 'c'
@@ -102,6 +110,12 @@ automation:
                   entity_id: input_boolean.dieuhoa_power
         default:
           - action: tuya_ir.send_code
+            continue_on_error: true
+            data:
+              code: "dieuhoa_{{ states('input_number.dieuhoa_temp') | int }}c"
+          # Phát song song qua ESP32-S3
+          - action: esphome.esphome_web_5bc488_send_ir_code
+            continue_on_error: true
             data:
               code: "dieuhoa_{{ states('input_number.dieuhoa_temp') | int }}c"
 
@@ -119,6 +133,14 @@ automation:
              and trigger.to_state.state not in ['unknown', 'unavailable'] }}
     actions:
       - action: tuya_ir.send_code
+        continue_on_error: true
+        data:
+          code: >
+            {% set m = {'Lạnh': 'lanh', 'Khô': 'kho', 'Quạt': 'quat', 'Auto': 'auto'} %}
+            dieuhoa_mode_{{ m[states('input_select.dieuhoa_mode')] }}
+      # Phát song song qua ESP32-S3
+      - action: esphome.esphome_web_5bc488_send_ir_code
+        continue_on_error: true
         data:
           code: >
             {% set m = {'Lạnh': 'lanh', 'Khô': 'kho', 'Quạt': 'quat', 'Auto': 'auto'} %}
@@ -138,6 +160,12 @@ automation:
              and trigger.to_state.state in ['on', 'off'] }}
     actions:
       - action: tuya_ir.send_code
+        continue_on_error: true
+        data:
+          code: quat_xoay_toggle
+      # Phát song song qua ESP32-S3
+      - action: esphome.esphome_web_5bc488_send_ir_code
+        continue_on_error: true
         data:
           code: quat_xoay_toggle
 
@@ -158,6 +186,15 @@ automation:
              and trigger.to_state.state not in ['unknown', 'unavailable'] }}
     actions:
       - action: tuya_ir.send_code
+        continue_on_error: true
+        data:
+          code: >
+            {{ 'quat_tang_tocdo'
+               if (trigger.to_state.state | float) > (trigger.from_state.state | float)
+               else 'quat_giam_tocdo' }}
+      # Phát song song qua ESP32-S3
+      - action: esphome.esphome_web_5bc488_send_ir_code
+        continue_on_error: true
         data:
           code: >
             {{ 'quat_tang_tocdo'

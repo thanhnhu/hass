@@ -8,6 +8,11 @@ esphome:
     - devices/fan/fan_codes.h
     - ir_dispatch.h
 
+external_components:
+  - source:
+      type: local
+      path: custom_components
+
 esp32:
   board: esp32-s3-devkitc-1
   variant: esp32s3
@@ -70,8 +75,60 @@ remote_receiver:
     - nec
     - raw
 
-# 3. Nút bấm test trực tiếp trên Web/HA
+# 3. Giao diện thực thể Climate chuẩn trên Home Assistant
+climate:
+  - platform: samsung_raw_climate
+    name: "Điều Hoà Samsung"
+    id: dieuhoa_samsung_climate
+    transmitter_id: my_ir_transmitter
+
+# 4. Các nút điều khiển quạt dạng Button trên Home Assistant
 button:
+  - platform: template
+    name: "Quạt - Tăng Tốc Độ"
+    icon: mdi:fan-plus
+    on_press:
+      - lambda: |-
+          size_t len = 0;
+          const int32_t* pulses = get_any_ir_code("quat_tang_tocdo", len);
+          if (pulses != nullptr && len > 0) {
+            std::vector<int32_t> vec(pulses, pulses + len);
+            auto call = id(my_ir_transmitter).transmit();
+            call.get_data()->set_carrier_frequency(38000);
+            call.get_data()->set_data(vec);
+            call.perform();
+          }
+
+  - platform: template
+    name: "Quạt - Giảm Tốc Độ"
+    icon: mdi:fan-minus
+    on_press:
+      - lambda: |-
+          size_t len = 0;
+          const int32_t* pulses = get_any_ir_code("quat_giam_tocdo", len);
+          if (pulses != nullptr && len > 0) {
+            std::vector<int32_t> vec(pulses, pulses + len);
+            auto call = id(my_ir_transmitter).transmit();
+            call.get_data()->set_carrier_frequency(38000);
+            call.get_data()->set_data(vec);
+            call.perform();
+          }
+
+  - platform: template
+    name: "Quạt - Xoay"
+    icon: mdi:fan-auto
+    on_press:
+      - lambda: |-
+          size_t len = 0;
+          const int32_t* pulses = get_any_ir_code("quat_xoay_toggle", len);
+          if (pulses != nullptr && len > 0) {
+            std::vector<int32_t> vec(pulses, pulses + len);
+            auto call = id(my_ir_transmitter).transmit();
+            call.get_data()->set_carrier_frequency(38000);
+            call.get_data()->set_data(vec);
+            call.perform();
+          }
+
   - platform: template
     name: "Test Bật ĐH 25C"
     on_press:
@@ -85,6 +142,7 @@ button:
             call.get_data()->set_data(vec);
             call.perform();
           }
+
   - platform: template
     name: "Test Tắt Điều Hoà"
     on_press:

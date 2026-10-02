@@ -30,8 +30,38 @@ esp32-s3/
 - **Wake-up pulse**: Điều hoà Samsung yêu cầu xung mồi đầu tiên `+468us, -17827us` để đánh thức mắt nhận trước khi nhận các block dữ liệu.
 - **RMT Driver trên ESP-IDF 5.x**: ESP32-S3 dùng streaming encoder, chỉ cần đặt `rmt_symbols: 64` (không đặt quá cao tránh lỗi `out of RMT symbol memory`).
 
+### Hướng dẫn Build và Nạp (Flash / Update OTA qua WSL)
+
+ESPHome được chạy trong môi trường WSL (Debian) với virtualenv `esphome_v2`.
+
+#### 1. Kiểm tra cấu hình (Validate)
+```bash
+wsl -d Debian -e /home/admin/esphome_v2/bin/esphome config /mnt/d/Working/Projects/hass/esp32-s3/esp32-s3.yaml
+```
+
+#### 2. Biên dịch firmware (Compile)
+```bash
+wsl -d Debian -e /home/admin/esphome_v2/bin/esphome compile /mnt/d/Working/Projects/hass/esp32-s3/esp32-s3.yaml
+```
+Output firmware tạo ra tại: `esp32-s3/.esphome/build/esphome-web-5bc488/build/firmware.factory.bin` (nạp dây qua web.esphome.io hoặc esptool) và `firmware.ota.bin`.
+
+#### 3. Nạp qua WiFi (Update OTA)
+Khi ESP32-S3 đang nối cùng mạng WiFi (mặc định IP ví dụ `192.168.2.13` hoặc qua hostname `esphome-web-5bc488.local`):
+```bash
+wsl -d Debian -e /home/admin/esphome_v2/bin/esphome upload /mnt/d/Working/Projects/hass/esp32-s3/esp32-s3.yaml --device 192.168.2.13
+```
+
+#### 4. Xem log trực tiếp thời gian thực
+```bash
+wsl -d Debian -e /home/admin/esphome_v2/bin/esphome logs /mnt/d/Working/Projects/hass/esp32-s3/esp32-s3.yaml --device 192.168.2.13
+```
+
 ### Tích hợp Home Assistant
-Sao chép `esp32-s3/ha-package-esphome-ir.yaml` vào `/config/packages/` trên Home Assistant để kết nối giao diện điều khiển với service `esphome.esphome_web_5bc488_send_ir_code`.
+1. **Thực thể Climate độc lập**: ESP32-S3 tự động expose thực thể `climate.dieu_hoa_samsung` lên Home Assistant, có đầy đủ các chế độ Cool, Dry, Fan only, Auto và dải nhiệt độ 18–30°C.
+2. **Điều khiển song song với Tuya S06**: Trong file `tuya-ir/ha-package-tuya-ir.yaml`, các automation điều khiển quạt và điều hoà được cấu hình bắn đồng thời cả 2 service:
+   - `tuya_ir.send_code` (Tuya S06)
+   - `esphome.esphome_web_5bc488_send_ir_code` (ESP32-S3)
+   (Có cờ `continue_on_error: true` giúp 1 trong 2 thiết bị mất điện thì thiết bị còn lại vẫn hoạt động bình thường).
 
 ---
 
