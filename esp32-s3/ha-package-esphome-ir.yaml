@@ -1,0 +1,226 @@
+# Điều khiển hồng ngoại qua ESP32-S3 (ESPHome)
+#
+# File package này thay thế hoàn toàn tuya_ir, tái sử dụng toàn bộ input helpers
+# và giao diện remote cũ trên Home Assistant, chỉ chuyển hướng gửi lệnh sang
+# service của ESP32-S3: esphome.esphome_web_5bc488_send_ir_code.
+
+input_boolean:
+  dieuhoa_power:
+    name: Điều hoà
+    icon: mdi:air-conditioner
+  quat_xoay:
+    name: Quạt - Xoay
+    icon: mdi:fan-auto
+
+input_select:
+  dieuhoa_mode:
+    name: Điều hoà - Chế độ
+    icon: mdi:tune
+    options:
+      - Lạnh
+      - Khô
+      - Quạt
+      - Auto
+
+input_number:
+  dieuhoa_temp:
+    name: Điều hoà - Nhiệt độ
+    min: 18
+    max: 30
+    step: 1
+    unit_of_measurement: "°C"
+    icon: mdi:thermometer
+    mode: box
+
+  quat_tocdo:
+    name: Quạt - Tốc độ
+    min: 0
+    max: 5
+    step: 1
+    icon: mdi:fan
+    mode: box
+
+automation:
+  - id: esphome_ir_dieuhoa_power
+    alias: Điều hoà - Gửi mã bật/tắt (ESPHome)
+    mode: restart
+    triggers:
+      - trigger: state
+        entity_id: input_boolean.dieuhoa_power
+    conditions:
+      - condition: template
+        value_template: >
+          {{ trigger.from_state is not none
+             and trigger.from_state.state in ['on', 'off']
+             and trigger.to_state.state in ['on', 'off'] }}
+    actions:
+      - action: esphome.esphome_web_5bc488_send_ir_code
+        data:
+          code: >
+            {{ 'dieuhoa_' ~ (states('input_number.dieuhoa_temp') | int) ~ 'c'
+               if is_state('input_boolean.dieuhoa_power', 'on') else 'dieuhoa_tat' }}
+
+  - id: esphome_ir_dieuhoa_temp
+    alias: Điều hoà - Gửi mã khi đổi nhiệt độ (ESPHome)
+    mode: restart
+    triggers:
+      - trigger: state
+        entity_id: input_number.dieuhoa_temp
+    conditions:
+      - condition: template
+        value_template: >
+          {{ trigger.from_state is not none
+             and trigger.from_state.state not in ['unknown', 'unavailable']
+             and trigger.to_state.state not in ['unknown', 'unavailable'] }}
+    actions:
+      - choose:
+          - conditions:
+              - condition: state
+                entity_id: input_boolean.dieuhoa_power
+                state: "off"
+            sequence:
+              - action: input_boolean.turn_on
+                target:
+                  entity_id: input_boolean.dieuhoa_power
+        default:
+          - action: esphome.esphome_web_5bc488_send_ir_code
+            data:
+              code: "dieuhoa_{{ states('input_number.dieuhoa_temp') | int }}c"
+
+  - id: esphome_ir_dieuhoa_mode
+    alias: Điều hoà - Gửi mã khi đổi chế độ (ESPHome)
+    mode: restart
+    triggers:
+      - trigger: state
+        entity_id: input_select.dieuhoa_mode
+    conditions:
+      - condition: template
+        value_template: >
+          {{ trigger.from_state is not none
+             and trigger.from_state.state not in ['unknown', 'unavailable']
+             and trigger.to_state.state not in ['unknown', 'unavailable'] }}
+    actions:
+      - action: esphome.esphome_web_5bc488_send_ir_code
+        data:
+          code: >
+            {% set m = {'Lạnh': 'lanh', 'Khô': 'kho', 'Quạt': 'quat', 'Auto': 'auto'} %}
+            dieuhoa_mode_{{ m[states('input_select.dieuhoa_mode')] }}
+
+  - id: esphome_ir_quat_xoay
+    alias: Quạt - Gửi mã xoay (ESPHome)
+    mode: restart
+    triggers:
+      - trigger: state
+        entity_id: input_boolean.quat_xoay
+    conditions:
+      - condition: template
+        value_template: >
+          {{ trigger.from_state is not none
+             and trigger.from_state.state in ['on', 'off']
+             and trigger.to_state.state in ['on', 'off'] }}
+    actions:
+      - action: esphome.esphome_web_5bc488_send_ir_code
+        data:
+          code: quat_xoay_toggle
+
+  - id: esphome_ir_quat_tocdo
+    alias: Quạt - Gửi mã tăng/giảm tốc độ (ESPHome)
+    mode: queued
+    max: 10
+    triggers:
+      - trigger: state
+        entity_id: input_number.quat_tocdo
+    conditions:
+      - condition: template
+        value_template: >
+          {{ trigger.from_state is not none
+             and trigger.from_state.state not in ['unknown', 'unavailable']
+             and trigger.to_state.state not in ['unknown', 'unavailable'] }}
+    actions:
+      - action: esphome.esphome_web_5bc488_send_ir_code
+        data:
+          code: >
+            {{ 'quat_tang_tocdo'
+               if (trigger.to_state.state | float) > (trigger.from_state.state | float)
+               else 'quat_giam_tocdo' }}
+
+script:
+  dieuhoa_bat:
+    alias: Điều hoà - Bật
+    icon: mdi:power
+    sequence:
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.dieuhoa_power
+
+  dieuhoa_tat:
+    alias: Điều hoà - Tắt
+    icon: mdi:power-off
+    sequence:
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.dieuhoa_power
+
+  dieuhoa_tang_nhiet:
+    alias: Điều hoà - Tăng nhiệt
+    icon: mdi:thermometer-plus
+    sequence:
+      - choose:
+          - conditions:
+              - condition: numeric_state
+                entity_id: input_number.dieuhoa_temp
+                below: 30
+            sequence:
+              - action: input_number.set_value
+                target:
+                  entity_id: input_number.dieuhoa_temp
+                data:
+                  value: "{{ (states('input_number.dieuhoa_temp') | int) + 1 }}"
+
+  dieuhoa_giam_nhiet:
+    alias: Điều hoà - Giảm nhiệt
+    icon: mdi:thermometer-minus
+    sequence:
+      - choose:
+          - conditions:
+              - condition: numeric_state
+                entity_id: input_number.dieuhoa_temp
+                above: 18
+            sequence:
+              - action: input_number.set_value
+                target:
+                  entity_id: input_number.dieuhoa_temp
+                data:
+                  value: "{{ (states('input_number.dieuhoa_temp') | int) - 1 }}"
+
+  quat_tang_tocdo:
+    alias: Quạt - Tăng tốc
+    icon: mdi:fan-plus
+    sequence:
+      - choose:
+          - conditions:
+              - condition: numeric_state
+                entity_id: input_number.quat_tocdo
+                below: 5
+            sequence:
+              - action: input_number.set_value
+                target:
+                  entity_id: input_number.quat_tocdo
+                data:
+                  value: "{{ (states('input_number.quat_tocdo') | int) + 1 }}"
+
+  quat_giam_tocdo:
+    alias: Quạt - Giảm tốc
+    icon: mdi:fan-minus
+    sequence:
+      - choose:
+          - conditions:
+              - condition: numeric_state
+                entity_id: input_number.quat_tocdo
+                above: 0
+            sequence:
+              - action: input_number.set_value
+                target:
+                  entity_id: input_number.quat_tocdo
+                data:
+                  value: "{{ (states('input_number.quat_tocdo') | int) - 1 }}"

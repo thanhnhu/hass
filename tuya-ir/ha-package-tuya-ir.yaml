@@ -1,0 +1,224 @@
+# Local IR control through the tuya_ir custom integration.
+#
+# Everything lives under /config -- the integration itself, the learned codes
+# (tuya_ir_codes.json) and the credentials in secrets.yaml -- so a Home Assistant
+# backup captures the whole setup and a restore brings it straight back.
+#
+# IR is one-way: the AC never reports back. The helpers below are Home Assistant's
+# idea of the device state. Every button writes to a helper, and an automation turns
+# the helper change into an IR frame -- so the UI always shows what was last sent,
+# and no path can send a code twice.
+
+tuya_ir:
+  device_id: !secret tuya_ir_device_id
+  host: !secret tuya_ir_host
+  local_key: !secret tuya_ir_local_key
+  version: 3.5
+  control_type: 1
+
+input_boolean:
+  dieuhoa_power:
+    name: Điều hoà
+    icon: mdi:air-conditioner
+  quat_xoay:
+    name: Quạt - Xoay
+    icon: mdi:fan-auto
+
+input_select:
+  dieuhoa_mode:
+    name: Điều hoà - Chế độ
+    icon: mdi:tune
+    options:
+      - Lạnh
+      - Khô
+      - Quạt
+      - Auto
+
+input_number:
+  dieuhoa_temp:
+    name: Điều hoà - Nhiệt độ
+    min: 18
+    max: 30
+    step: 1
+    unit_of_measurement: "°C"
+    icon: mdi:thermometer
+    mode: box
+
+  quat_tocdo:
+    name: Quạt - Tốc độ
+    min: 0
+    max: 5
+    step: 1
+    icon: mdi:fan
+    mode: box
+
+automation:
+  - id: tuya_ir_dieuhoa_power
+    alias: Điều hoà - Gửi mã bật/tắt
+    mode: restart
+    triggers:
+      - trigger: state
+        entity_id: input_boolean.dieuhoa_power
+    conditions:
+      - condition: template
+        value_template: >
+          {{ trigger.from_state is not none
+             and trigger.from_state.state in ['on', 'off']
+             and trigger.to_state.state in ['on', 'off'] }}
+    actions:
+      # Temperature frames already carry the power-on bit, so reusing one turns the
+      # unit on *and* applies the right temperature. The standalone dieuhoa_bat frame
+      # is stale as soon as the AC's state moves on, so it is deliberately not used.
+      - action: tuya_ir.send_code
+        data:
+          code: >
+            {{ 'dieuhoa_' ~ (states('input_number.dieuhoa_temp') | int) ~ 'c'
+               if is_state('input_boolean.dieuhoa_power', 'on') else 'dieuhoa_tat' }}
+
+  - id: tuya_ir_dieuhoa_temp
+    alias: Điều hoà - Gửi mã khi đổi nhiệt độ
+    mode: restart
+    triggers:
+      - trigger: state
+        entity_id: input_number.dieuhoa_temp
+    conditions:
+      - condition: template
+        value_template: >
+          {{ trigger.from_state is not none
+             and trigger.from_state.state not in ['unknown', 'unavailable']
+             and trigger.to_state.state not in ['unknown', 'unavailable'] }}
+    actions:
+      # A temperature frame also switches the unit on. If it was off, flip the helper
+      # instead of transmitting here -- the power automation then sends the one frame,
+      # so the AC never receives the same code twice.
+      - choose:
+          - conditions:
+              - condition: state
+                entity_id: input_boolean.dieuhoa_power
+                state: "off"
+            sequence:
+              - action: input_boolean.turn_on
+                target:
+                  entity_id: input_boolean.dieuhoa_power
+        default:
+          - action: tuya_ir.send_code
+            data:
+              code: "dieuhoa_{{ states('input_number.dieuhoa_temp') | int }}c"
+
+  - id: tuya_ir_dieuhoa_mode
+    alias: Điều hoà - Gửi mã khi đổi chế độ
+    mode: restart
+    triggers:
+      - trigger: state
+        entity_id: input_select.dieuhoa_mode
+    conditions:
+      - condition: template
+        value_template: >
+          {{ trigger.from_state is not none
+             and trigger.from_state.state not in ['unknown', 'unavailable']
+             and trigger.to_state.state not in ['unknown', 'unavailable'] }}
+    actions:
+      - action: tuya_ir.send_code
+        data:
+          code: >
+            {% set m = {'Lạnh': 'lanh', 'Khô': 'kho', 'Quạt': 'quat', 'Auto': 'auto'} %}
+            dieuhoa_mode_{{ m[states('input_select.dieuhoa_mode')] }}
+
+  - id: tuya_ir_quat_xoay
+    alias: Quạt - Gửi mã xoay
+    mode: restart
+    triggers:
+      - trigger: state
+        entity_id: input_boolean.quat_xoay
+    conditions:
+      - condition: template
+        value_template: >
+          {{ trigger.from_state is not none
+             and trigger.from_state.state in ['on', 'off']
+             and trigger.to_state.state in ['on', 'off'] }}
+    actions:
+      - action: tuya_ir.send_code
+        data:
+          code: quat_xoay_toggle
+
+  # The fan only has relative speed codes, so the direction of the change decides
+  # which one to send.
+  - id: tuya_ir_quat_tocdo
+    alias: Quạt - Gửi mã tăng/giảm tốc độ
+    mode: queued
+    max: 10
+    triggers:
+      - trigger: state
+        entity_id: input_number.quat_tocdo
+    conditions:
+      - condition: template
+        value_template: >
+          {{ trigger.from_state is not none
+             and trigger.from_state.state not in ['unknown', 'unavailable']
+             and trigger.to_state.state not in ['unknown', 'unavailable'] }}
+    actions:
+      - action: tuya_ir.send_code
+        data:
+          code: >
+            {{ 'quat_tang_tocdo'
+               if (trigger.to_state.state | float) > (trigger.from_state.state | float)
+               else 'quat_giam_tocdo' }}
+
+script:
+  dieuhoa_bat:
+    alias: Điều hoà - Bật
+    icon: mdi:power
+    sequence:
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.dieuhoa_power
+
+  dieuhoa_tat:
+    alias: Điều hoà - Tắt
+    icon: mdi:power-off
+    sequence:
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.dieuhoa_power
+
+  dieuhoa_tang_nhiet:
+    alias: Điều hoà - Tăng nhiệt độ
+    icon: mdi:thermometer-plus
+    sequence:
+      - action: input_number.increment
+        target:
+          entity_id: input_number.dieuhoa_temp
+
+  dieuhoa_giam_nhiet:
+    alias: Điều hoà - Giảm nhiệt độ
+    icon: mdi:thermometer-minus
+    sequence:
+      - action: input_number.decrement
+        target:
+          entity_id: input_number.dieuhoa_temp
+
+  quat_tang_tocdo:
+    alias: Quạt - Tăng tốc độ
+    icon: mdi:fan-plus
+    sequence:
+      - action: input_number.increment
+        target:
+          entity_id: input_number.quat_tocdo
+
+  quat_giam_tocdo:
+    alias: Quạt - Giảm tốc độ
+    icon: mdi:fan-minus
+    sequence:
+      - action: input_number.decrement
+        target:
+          entity_id: input_number.quat_tocdo
+
+  # Re-sends the current temperature. Use it when someone changed the AC with the
+  # physical remote and Home Assistant's idea of the state drifted.
+  dieuhoa_dong_bo:
+    alias: Điều hoà - Đồng bộ lại
+    icon: mdi:sync
+    sequence:
+      - action: tuya_ir.send_code
+        data:
+          code: "dieuhoa_{{ states('input_number.dieuhoa_temp') | int }}c"

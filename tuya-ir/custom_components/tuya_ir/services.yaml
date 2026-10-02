@@ -1,0 +1,45 @@
+send_code:
+  name: Send IR code
+  description: Transmit a previously learned IR code.
+  fields:
+    code:
+      name: Code
+      description: Name of the saved code, e.g. dieuhoa_25c
+      required: true
+      example: dieuhoa_25c
+      selector:
+        text:
+
+learn_code:
+  name: Learn IR code
+  description: >
+    Put the blaster into learning mode and save the next button press. Hold the
+    remote 10-15cm away, pointed at the receiver, and press the button while this
+    service is running.
+  fields:
+    name:
+      name: Name
+      description: Name to save the code under
+      required: true
+      example: dieuhoa_bat
+      selector:
+        text:
+    timeout:
+      name: Timeout
+      description: Seconds to wait for a button press
+      default: 15
+      selector:
+        number:
+          min: 5
+          max: 60
+          unit_of_measurement: s
+
+delete_code:
+  name: Delete IR code
+  description: Remove a saved IR code.
+  fields:
+    name:
+      name: Name
+      required: true
+      selector:
+        text:

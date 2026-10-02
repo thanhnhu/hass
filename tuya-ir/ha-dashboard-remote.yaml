@@ -1,0 +1,222 @@
+# Dashboard that mimics an AC/fan remote and shows which state is currently active.
+#
+# The toggle, dropdown and number boxes reflect what was last sent, so you can see
+# at a glance whether the AC is on, which mode is selected and at what temperature.
+#
+# Settings > Dashboards > + Add dashboard > New dashboard from scratch,
+# then open it, click the pencil, the three-dot menu, Raw configuration editor,
+# and replace everything with this file.
+
+views:
+  - title: Điều khiển
+    path: dieu-khien
+    icon: mdi:remote
+    cards:
+      - type: vertical-stack
+        cards:
+          - type: markdown
+            content: "## ❄️ Điều hoà"
+
+          # Toggle + dropdown + box all render their current value, which is the
+          # "what is active right now" indicator.
+          - type: entities
+            state_color: true
+            entities:
+              - entity: input_boolean.dieuhoa_power
+                name: Nguồn
+              - entity: input_select.dieuhoa_mode
+                name: Chế độ
+              - entity: input_number.dieuhoa_temp
+                name: Nhiệt độ
+
+          - type: horizontal-stack
+            cards:
+              - type: button
+                name: GIẢM
+                icon: mdi:thermometer-minus
+                icon_height: 40px
+                tap_action:
+                  action: perform-action
+                  perform_action: script.dieuhoa_giam_nhiet
+              - type: button
+                entity: input_boolean.dieuhoa_power
+                name: BẬT/TẮT
+                icon: mdi:power
+                icon_height: 40px
+                show_state: true
+                state_color: true
+                tap_action:
+                  action: toggle
+              - type: button
+                name: TĂNG
+                icon: mdi:thermometer-plus
+                icon_height: 40px
+                tap_action:
+                  action: perform-action
+                  perform_action: script.dieuhoa_tang_nhiet
+
+          - type: markdown
+            content: "**Chế độ** — nút đang chọn sẽ sáng màu"
+
+          # Each button lights up only when input_select already holds its option.
+          - type: grid
+            columns: 2
+            square: false
+            cards:
+              - type: conditional
+                conditions:
+                  - condition: state
+                    entity: input_select.dieuhoa_mode
+                    state: Lạnh
+                card:
+                  type: button
+                  name: ❄️ Lạnh (đang bật)
+                  icon: mdi:snowflake
+                  tap_action:
+                    action: none
+              - type: conditional
+                conditions:
+                  - condition: state
+                    entity: input_select.dieuhoa_mode
+                    state_not: Lạnh
+                card:
+                  type: button
+                  name: Lạnh
+                  icon: mdi:snowflake
+                  tap_action:
+                    action: perform-action
+                    perform_action: input_select.select_option
+                    target:
+                      entity_id: input_select.dieuhoa_mode
+                    data:
+                      option: Lạnh
+
+              - type: conditional
+                conditions:
+                  - condition: state
+                    entity: input_select.dieuhoa_mode
+                    state: Khô
+                card:
+                  type: button
+                  name: 💧 Khô (đang bật)
+                  icon: mdi:water-percent
+                  tap_action:
+                    action: none
+              - type: conditional
+                conditions:
+                  - condition: state
+                    entity: input_select.dieuhoa_mode
+                    state_not: Khô
+                card:
+                  type: button
+                  name: Khô
+                  icon: mdi:water-percent
+                  tap_action:
+                    action: perform-action
+                    perform_action: input_select.select_option
+                    target:
+                      entity_id: input_select.dieuhoa_mode
+                    data:
+                      option: Khô
+
+              - type: conditional
+                conditions:
+                  - condition: state
+                    entity: input_select.dieuhoa_mode
+                    state: Quạt
+                card:
+                  type: button
+                  name: 🌀 Quạt (đang bật)
+                  icon: mdi:fan
+                  tap_action:
+                    action: none
+              - type: conditional
+                conditions:
+                  - condition: state
+                    entity: input_select.dieuhoa_mode
+                    state_not: Quạt
+                card:
+                  type: button
+                  name: Quạt
+                  icon: mdi:fan
+                  tap_action:
+                    action: perform-action
+                    perform_action: input_select.select_option
+                    target:
+                      entity_id: input_select.dieuhoa_mode
+                    data:
+                      option: Quạt
+
+              - type: conditional
+                conditions:
+                  - condition: state
+                    entity: input_select.dieuhoa_mode
+                    state: Auto
+                card:
+                  type: button
+                  name: 🔄 Auto (đang bật)
+                  icon: mdi:autorenew
+                  tap_action:
+                    action: none
+              - type: conditional
+                conditions:
+                  - condition: state
+                    entity: input_select.dieuhoa_mode
+                    state_not: Auto
+                card:
+                  type: button
+                  name: Auto
+                  icon: mdi:autorenew
+                  tap_action:
+                    action: perform-action
+                    perform_action: input_select.select_option
+                    target:
+                      entity_id: input_select.dieuhoa_mode
+                    data:
+                      option: Auto
+
+          - type: button
+            name: Đồng bộ lại (khi ai đó dùng remote thật)
+            icon: mdi:sync
+            tap_action:
+              action: perform-action
+              perform_action: script.dieuhoa_dong_bo
+
+      - type: vertical-stack
+        cards:
+          - type: markdown
+            content: "## 🌀 Quạt"
+
+          - type: entities
+            state_color: true
+            entities:
+              - entity: input_number.quat_tocdo
+                name: Tốc độ
+              - entity: input_boolean.quat_xoay
+                name: Xoay
+
+          - type: horizontal-stack
+            cards:
+              - type: button
+                name: GIẢM
+                icon: mdi:fan-minus
+                icon_height: 40px
+                tap_action:
+                  action: perform-action
+                  perform_action: script.quat_giam_tocdo
+              - type: button
+                entity: input_boolean.quat_xoay
+                name: XOAY
+                icon: mdi:fan-auto
+                icon_height: 40px
+                show_state: true
+                state_color: true
+                tap_action:
+                  action: toggle
+              - type: button
+                name: TĂNG
+                icon: mdi:fan-plus
+                icon_height: 40px
+                tap_action:
+                  action: perform-action
+                  perform_action: script.quat_tang_tocdo

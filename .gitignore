@@ -1,0 +1,6 @@
+# Secrets and learned codes live in the Home Assistant config dir, not here.
+secrets.yaml
+**/secrets.yaml
+__pycache__/
+.esphome/
+**/.esphome/

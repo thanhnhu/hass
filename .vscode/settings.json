@@ -1,0 +1,7 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "wsl": true,
+        "Test-NetConnection": true,
+        "Get-Command": true
+    }
+}

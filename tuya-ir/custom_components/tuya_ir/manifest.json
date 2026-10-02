@@ -1,0 +1,10 @@
+{
+  "domain": "tuya_ir",
+  "name": "Tuya IR (local)",
+  "version": "1.0.0",
+  "documentation": "https://github.com/jasonacox/tinytuya",
+  "codeowners": [],
+  "dependencies": [],
+  "requirements": ["tinytuya==1.20.0"],
+  "iot_class": "assumed_state"
+}
