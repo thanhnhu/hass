@@ -171,3 +171,4 @@ class SamsungRawClimate : public climate_ir::ClimateIR {
 
 }  // namespace samsung_raw_climate
 }  // namespace esphome
+

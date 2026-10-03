@@ -49,7 +49,7 @@ api:
             size_t len = 0;
             const int32_t* pulses = get_any_ir_code(code, len);
             if (pulses != nullptr && len > 0) {
-              std::vector<int32_t> vec(pulses, pulses + len);
+              std::vector<int32_t> vec = load_ir_code_vector(pulses, len);
               auto call = id(my_ir_transmitter).transmit();
               call.get_data()->set_carrier_frequency(38000);
               call.get_data()->set_data(vec);
@@ -70,9 +70,10 @@ remote_transmitter:
   rmt_symbols: 64
   non_blocking: true
 
-# 2. Cấu hình mắt THU hồng ngoại ở chân GPIO4 để học lệnh (nếu có gắn)
+# 2. Cấu hình mắt THU hồng ngoại ở chân GPIO4 để học lệnh và đồng bộ 2 chiều
 # rmt_symbols: 64 để vừa vặn trong tổng bộ nhớ RMT phần cứng của ESP32-S3 (tránh lỗi out of RMT symbol memory)
 remote_receiver:
+  id: my_ir_receiver
   pin:
     number: GPIO4
     mode: INPUT_PULLUP
@@ -83,56 +84,11 @@ remote_receiver:
     - nec
     - raw
 
-# 3. Giao diện thực thể Climate chuẩn trên Home Assistant
+# 3. Giao diện thực thể Climate chuẩn trên Home Assistant (Đồng bộ 2 chiều qua mắt thu IR)
 climate:
   - platform: samsung_raw_climate
     name: "Điều Hoà Samsung"
     id: dieuhoa_samsung_climate
     transmitter_id: my_ir_transmitter
+    receiver_id: my_ir_receiver
 
-# 4. Các nút điều khiển quạt dạng Button trên Home Assistant
-button:
-  - platform: template
-    name: "Quạt - Tăng Tốc Độ"
-    icon: mdi:fan-plus
-    on_press:
-      - lambda: |-
-          size_t len = 0;
-          const int32_t* pulses = get_any_ir_code("quat_tang_tocdo", len);
-          if (pulses != nullptr && len > 0) {
-            std::vector<int32_t> vec(pulses, pulses + len);
-            auto call = id(my_ir_transmitter).transmit();
-            call.get_data()->set_carrier_frequency(38000);
-            call.get_data()->set_data(vec);
-            call.perform();
-          }
-
-  - platform: template
-    name: "Quạt - Giảm Tốc Độ"
-    icon: mdi:fan-minus
-    on_press:
-      - lambda: |-
-          size_t len = 0;
-          const int32_t* pulses = get_any_ir_code("quat_giam_tocdo", len);
-          if (pulses != nullptr && len > 0) {
-            std::vector<int32_t> vec(pulses, pulses + len);
-            auto call = id(my_ir_transmitter).transmit();
-            call.get_data()->set_carrier_frequency(38000);
-            call.get_data()->set_data(vec);
-            call.perform();
-          }
-
-  - platform: template
-    name: "Quạt - Xoay"
-    icon: mdi:fan-auto
-    on_press:
-      - lambda: |-
-          size_t len = 0;
-          const int32_t* pulses = get_any_ir_code("quat_xoay_toggle", len);
-          if (pulses != nullptr && len > 0) {
-            std::vector<int32_t> vec(pulses, pulses + len);
-            auto call = id(my_ir_transmitter).transmit();
-            call.get_data()->set_carrier_frequency(38000);
-            call.get_data()->set_data(vec);
-            call.perform();
-          }
