@@ -14,21 +14,29 @@ Gồm 2 giải pháp phần cứng:
 
 ```
 esp32-s3/
+├── custom_components/
+│   └── samsung_raw_climate/         # Custom Climate platform điều khiển Samsung Raw IR
 ├── devices/
 │   ├── samsung_ac/
 │   │   └── samsung_ac_codes.h       # Mảng xung điều khiển điều hoà Samsung (18°C-30°C, các chế độ, Bật/Tắt)
 │   └── fan/
 │       └── fan_codes.h              # Mảng xung quạt (tăng/giảm tốc độ, xoay)
 ├── ir_dispatch.h                    # Bộ định tuyến tìm mã IR theo tên gọi
-├── esp32-s3.yaml                    # File cấu hình ESPHome cho ESP32-S3 (RMT, WiFi, API Service)
+├── esp32-s3.yaml                    # File cấu hình ESPHome cho ESP32-S3 (RMT, Web Server, WiFi, API Service)
 ├── ha-package-esphome-ir.yaml       # Package Home Assistant (helpers, automation gọi service ESPHome)
 ├── generate_ir_codes.py             # Script trích xuất và dịch mã từ Tuya JSON sang C++ header
 └── tuya_ir_codes.json               # Mã nguồn hồng ngoại gốc dạng base64
 ```
 
-### Điểm kỹ thuật quan trọng của Điều hoà Samsung
+### Điểm kỹ thuật quan trọng của Điều hoà Samsung & Phần cứng
 - **Wake-up pulse**: Điều hoà Samsung yêu cầu xung mồi đầu tiên `+468us, -17827us` để đánh thức mắt nhận trước khi nhận các block dữ liệu.
 - **RMT Driver trên ESP-IDF 5.x**: ESP32-S3 dùng streaming encoder, chỉ cần đặt `rmt_symbols: 64` (không đặt quá cao tránh lỗi `out of RMT symbol memory`).
+- **Logic kích tín hiệu (Chân Signal)**:
+  - Cấu hình hiện tại đặt `inverted: true` (kích mức **LOW** - Active LOW) phù hợp với các module dùng transistor PNP (mã dán `2TY` / `S8550` như `transmitter v1221`).
+  - Khi kích mức LOW, chân `VCC` của module nên cắm vào **3.3V** của ESP32 (thay vì 5V) để mức HIGH từ GPIO ngắt hoàn toàn transistor.
+  - Nếu module dùng transistor NPN (`J3Y` / `S8050`), đổi lại `inverted: false` và cắm `VCC` vào 5V.
+  - *Mẹo test nhanh:* Rút dây `DAT`, chạm vào `GND` (nếu đèn báo sáng $\rightarrow$ kích LOW) hoặc `VCC` (nếu đèn sáng $\rightarrow$ kích HIGH).
+- **Web Server trực tiếp**: Cấu hình bật `web_server: port: 80`, có thể truy cập thẳng `http://192.168.2.13` qua trình duyệt mà không cần Home Assistant.
 
 ### Hướng dẫn Build và Nạp (Flash / Update OTA qua WSL)
 

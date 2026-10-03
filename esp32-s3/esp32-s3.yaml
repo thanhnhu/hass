@@ -19,8 +19,24 @@ esp32:
   framework:
     type: esp-idf
 
+# Allow Over-The-Air updates
+ota:
+  - platform: esphome
+
+# Enable Web Server on port 80
+web_server:
+  port: 80
+
+# Tối ưu cho chip S3 N16R8 có PSRAM
+psram:
+  mode: octal
+
 # Enable logging
 logger:
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
 
 # Enable Home Assistant API with custom service to send IR
 api:
@@ -43,22 +59,12 @@ api:
               ESP_LOGW("ir_send", "Unknown IR code: '%s'", code.c_str());
             }
 
-# Allow Over-The-Air updates
-ota:
-  - platform: esphome
-
-wifi:
-  ssid: !secret wifi_ssid
-  password: !secret wifi_password
-
-# Tối ưu cho chip S3 N16R8 có PSRAM
-psram:
-  mode: octal
-
-# 1. Cấu hình mắt PHÁT hồng ngoại ở chân GPIO5
+# 1. Cấu hình mắt PHÁT hồng ngoại ở chân GPIO5 (Kích mức LOW)
 # Với ESP32-S3 và ESP-IDF 5.x: rmt_symbols tối ưu là 64 (dùng streaming encoder, không cần block RAM lớn)
 remote_transmitter:
-  pin: GPIO5
+  pin:
+    number: GPIO5
+    inverted: true
   carrier_duty_percent: 50%
   id: my_ir_transmitter
   rmt_symbols: 64
@@ -67,7 +73,9 @@ remote_transmitter:
 # 2. Cấu hình mắt THU hồng ngoại ở chân GPIO4 để học lệnh (nếu có gắn)
 # rmt_symbols: 64 để vừa vặn trong tổng bộ nhớ RMT phần cứng của ESP32-S3 (tránh lỗi out of RMT symbol memory)
 remote_receiver:
-  pin: GPIO4
+  pin:
+    number: GPIO4
+    mode: INPUT_PULLUP
   rmt_symbols: 64
   buffer_size: 2048
   dump:
@@ -121,34 +129,6 @@ button:
       - lambda: |-
           size_t len = 0;
           const int32_t* pulses = get_any_ir_code("quat_xoay_toggle", len);
-          if (pulses != nullptr && len > 0) {
-            std::vector<int32_t> vec(pulses, pulses + len);
-            auto call = id(my_ir_transmitter).transmit();
-            call.get_data()->set_carrier_frequency(38000);
-            call.get_data()->set_data(vec);
-            call.perform();
-          }
-
-  - platform: template
-    name: "Test Bật ĐH 25C"
-    on_press:
-      - lambda: |-
-          size_t len = 0;
-          const int32_t* pulses = get_any_ir_code("dieuhoa_25c", len);
-          if (pulses != nullptr && len > 0) {
-            std::vector<int32_t> vec(pulses, pulses + len);
-            auto call = id(my_ir_transmitter).transmit();
-            call.get_data()->set_carrier_frequency(38000);
-            call.get_data()->set_data(vec);
-            call.perform();
-          }
-
-  - platform: template
-    name: "Test Tắt Điều Hoà"
-    on_press:
-      - lambda: |-
-          size_t len = 0;
-          const int32_t* pulses = get_any_ir_code("dieuhoa_tat", len);
           if (pulses != nullptr && len > 0) {
             std::vector<int32_t> vec(pulses, pulses + len);
             auto call = id(my_ir_transmitter).transmit();
