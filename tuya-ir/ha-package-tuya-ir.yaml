@@ -76,7 +76,7 @@ automation:
             {{ 'dieuhoa_' ~ (states('input_number.dieuhoa_temp') | int) ~ 'c'
                if is_state('input_boolean.dieuhoa_power', 'on') else 'dieuhoa_tat' }}
       # Phát song song qua ESP32-S3
-      - action: esphome.esphome_web_5bc488_send_ir_code
+      - action: esphome.esphome_esp32_s3_send_ir_code
         continue_on_error: true
         data:
           code: >
@@ -114,7 +114,7 @@ automation:
             data:
               code: "dieuhoa_{{ states('input_number.dieuhoa_temp') | int }}c"
           # Phát song song qua ESP32-S3
-          - action: esphome.esphome_web_5bc488_send_ir_code
+          - action: esphome.esphome_esp32_s3_send_ir_code
             continue_on_error: true
             data:
               code: "dieuhoa_{{ states('input_number.dieuhoa_temp') | int }}c"
@@ -139,7 +139,7 @@ automation:
             {% set m = {'Lạnh': 'lanh', 'Khô': 'kho', 'Quạt': 'quat', 'Auto': 'auto'} %}
             dieuhoa_mode_{{ m[states('input_select.dieuhoa_mode')] }}
       # Phát song song qua ESP32-S3
-      - action: esphome.esphome_web_5bc488_send_ir_code
+      - action: esphome.esphome_esp32_s3_send_ir_code
         continue_on_error: true
         data:
           code: >
@@ -164,7 +164,7 @@ automation:
         data:
           code: quat_xoay_toggle
       # Phát song song qua ESP32-S3
-      - action: esphome.esphome_web_5bc488_send_ir_code
+      - action: esphome.esphome_esp32_s3_send_ir_code
         continue_on_error: true
         data:
           code: quat_xoay_toggle
@@ -193,7 +193,7 @@ automation:
                if (trigger.to_state.state | float) > (trigger.from_state.state | float)
                else 'quat_giam_tocdo' }}
       # Phát song song qua ESP32-S3
-      - action: esphome.esphome_web_5bc488_send_ir_code
+      - action: esphome.esphome_esp32_s3_send_ir_code
         continue_on_error: true
         data:
           code: >

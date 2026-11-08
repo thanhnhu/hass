@@ -1,0 +1,110 @@
+# Handles the Vietnamese sentences in custom_sentences/vi/nha.yaml without calling an LLM.
+intent_script:
+  DieuHoaBat:
+    action:
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.dieuhoa_power
+    speech:
+      text: "Đã bật điều hoà."
+
+  DieuHoaTat:
+    action:
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.dieuhoa_power
+    speech:
+      text: "Đã tắt điều hoà."
+
+  DieuHoaNhietDo:
+    action:
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.dieuhoa_temp
+        data:
+          value: "{{ nhiet_do | int }}"
+    speech:
+      text: "Đã đặt điều hoà {{ nhiet_do | int }} độ."
+
+  DieuHoaTangNhiet:
+    action:
+      - action: input_number.increment
+        target:
+          entity_id: input_number.dieuhoa_temp
+    speech:
+      text: "Đã tăng nhiệt độ điều hoà."
+
+  DieuHoaGiamNhiet:
+    action:
+      - action: input_number.decrement
+        target:
+          entity_id: input_number.dieuhoa_temp
+    speech:
+      text: "Đã giảm nhiệt độ điều hoà."
+
+  DieuHoaCheDo:
+    action:
+      - action: input_select.select_option
+        target:
+          entity_id: input_select.dieuhoa_mode
+        data:
+          option: >-
+            {{ {'lạnh': 'Lạnh', 'làm lạnh': 'Lạnh', 'mát': 'Lạnh', 'khô': 'Khô', 'hút ẩm': 'Khô',
+                'quạt': 'Quạt', 'auto': 'Auto', 'tự động': 'Auto'}.get(che_do | lower, che_do) }}
+    speech:
+      text: "Đã chuyển điều hoà sang chế độ {{ che_do }}."
+
+  QuatTangTocDo:
+    action:
+      - action: input_number.increment
+        target:
+          entity_id: input_number.quat_tocdo
+    speech:
+      text: "Đã tăng tốc độ quạt."
+
+  QuatGiamTocDo:
+    action:
+      - action: input_number.decrement
+        target:
+          entity_id: input_number.quat_tocdo
+    speech:
+      text: "Đã giảm tốc độ quạt."
+
+  QuatXoayBat:
+    action:
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.quat_xoay
+    speech:
+      text: "Đã bật quạt xoay."
+
+  QuatXoayTat:
+    action:
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.quat_xoay
+    speech:
+      text: "Đã tắt quạt xoay."
+
+  MayLocBat:
+    action:
+      - action: switch.turn_on
+        target:
+          entity_id: switch.zhimi_sg_874668291_rmb1_on_p_2_1
+    speech:
+      text: "Đã bật máy lọc không khí."
+
+  MayLocTat:
+    action:
+      - action: switch.turn_off
+        target:
+          entity_id: switch.zhimi_sg_874668291_rmb1_on_p_2_1
+    speech:
+      text: "Đã tắt máy lọc không khí."
+
+  KhongKhiTrangThai:
+    speech:
+      text: >-
+        Trong phòng {{ states('sensor.zhimi_sg_874668291_rmb1_temperature_p_3_7') }} độ,
+        độ ẩm {{ states('sensor.zhimi_sg_874668291_rmb1_relative_humidity_p_3_1') }} phần trăm,
+        bụi mịn PM2.5 là {{ states('sensor.zhimi_sg_874668291_rmb1_pm2_5_density_p_3_4') }}.

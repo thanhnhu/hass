@@ -2,7 +2,7 @@
 #
 # File package này thay thế hoàn toàn tuya_ir, tái sử dụng toàn bộ input helpers
 # và giao diện remote cũ trên Home Assistant, chỉ chuyển hướng gửi lệnh sang
-# service của ESP32-S3: esphome.esphome_web_5bc488_send_ir_code.
+# service của ESP32-S3: esphome.esphome_esp32_s3_send_ir_code.
 
 input_boolean:
   dieuhoa_power:
@@ -54,7 +54,7 @@ automation:
              and trigger.from_state.state in ['on', 'off']
              and trigger.to_state.state in ['on', 'off'] }}
     actions:
-      - action: esphome.esphome_web_5bc488_send_ir_code
+      - action: esphome.esphome_esp32_s3_send_ir_code
         data:
           code: >
             {{ 'dieuhoa_' ~ (states('input_number.dieuhoa_temp') | int) ~ 'c'
@@ -83,7 +83,7 @@ automation:
                 target:
                   entity_id: input_boolean.dieuhoa_power
         default:
-          - action: esphome.esphome_web_5bc488_send_ir_code
+          - action: esphome.esphome_esp32_s3_send_ir_code
             data:
               code: "dieuhoa_{{ states('input_number.dieuhoa_temp') | int }}c"
 
@@ -100,7 +100,7 @@ automation:
              and trigger.from_state.state not in ['unknown', 'unavailable']
              and trigger.to_state.state not in ['unknown', 'unavailable'] }}
     actions:
-      - action: esphome.esphome_web_5bc488_send_ir_code
+      - action: esphome.esphome_esp32_s3_send_ir_code
         data:
           code: >
             {% set m = {'Lạnh': 'lanh', 'Khô': 'kho', 'Quạt': 'quat', 'Auto': 'auto'} %}
@@ -119,7 +119,7 @@ automation:
              and trigger.from_state.state in ['on', 'off']
              and trigger.to_state.state in ['on', 'off'] }}
     actions:
-      - action: esphome.esphome_web_5bc488_send_ir_code
+      - action: esphome.esphome_esp32_s3_send_ir_code
         data:
           code: quat_xoay_toggle
 
@@ -137,7 +137,7 @@ automation:
              and trigger.from_state.state not in ['unknown', 'unavailable']
              and trigger.to_state.state not in ['unknown', 'unavailable'] }}
     actions:
-      - action: esphome.esphome_web_5bc488_send_ir_code
+      - action: esphome.esphome_esp32_s3_send_ir_code
         data:
           code: >
             {{ 'quat_tang_tocdo'

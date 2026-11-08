@@ -1,0 +1,38 @@
+services:
+  whisper:
+    image: rhasspy/wyoming-whisper:latest
+    container_name: wyoming-whisper
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - /DATA/AppData/wyoming-whisper/data:/data
+    command:
+      - --uri
+      - tcp://0.0.0.0:10300
+      - --model
+      - base-int8
+      - --language
+      - vi
+      - --compute-type
+      - int8
+      - --beam-size
+      - "1"
+      - --cpu-threads
+      - "2"
+    mem_limit: 1g
+    cpus: 2
+
+  piper:
+    image: rhasspy/wyoming-piper:latest
+    container_name: wyoming-piper
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - /DATA/AppData/wyoming-piper/data:/data
+    command:
+      - --uri
+      - tcp://0.0.0.0:10200
+      - --voice
+      - vi_VN-vais1000-medium
+    mem_limit: 512m
+    cpus: 1

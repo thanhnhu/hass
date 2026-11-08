@@ -1,14 +1,111 @@
-# Home Assistant — Điều khiển hồng ngoại local (Tuya S06 & ESP32-S3 ESPHome)
+# Home Assistant — Điều khiển hồng ngoại local & trợ lý giọng nói
 
-Điều khiển điều hoà Samsung và quạt thông qua hồng ngoại hoàn toàn **Local trong mạng LAN**, không phụ thuộc cloud hay internet.
+Điều khiển điều hoà Samsung và quạt bằng hồng ngoại **local trong LAN**, cộng thêm trợ lý giọng
+nói tiếng Việt (micro ESP32-S3 → Home Assistant Assist → OpenClaw).
 
-Gồm 2 giải pháp phần cứng:
-1. **Tuya Smart IR S06 (module CB3S / BK7231N)**: Điều khiển qua LAN bằng `local_key` và custom component `tuya_ir`.
-2. **ESP32-S3 (ESPHome)**: Điều khiển trực tiếp qua Native API của ESPHome, phát mã xung IR chuẩn (bao gồm cả Wake-up pulse) với module phát hồng ngoại gắn chân GPIO5.
+Hạ tầng hiện tại: Home Assistant trên TV Box `192.168.2.18`; Whisper, Piper, OpenClaw và
+voice-router trên Oracle (`100.92.183.123`); TV Box phát âm thanh Bluetooth và chạy music-stream.
+Firmware ESPHome build trong WSL Debian (virtualenv `esphome_v2`).
+
+| Thư mục | Phần cứng | Hostname / IP | Vai trò hiện tại |
+|---|---|---|---|
+| `esp-12f/` | ESP-12F (ESP8266) | `esphome-hub-ir` / `192.168.2.15` | **Hub IR đang dùng**: phát/thu IR + cảm biến HDC1080 |
+| `esp32-s3-aiagent/` | ESP32-S3 + micro INMP441 | `esphome-esp32-s3` / `192.168.2.13` | **Đang chạy trên board**: wake word + micro cho Assist |
+| `esp32-s3/` | ESP32-S3 + module IR | `esphome-esp32-s3` / `192.168.2.13` | Firmware IR **thử nghiệm** trên board ESP32-S3 (luân phiên với aiagent) |
+| `tuya-ir/` | Tuya Smart IR S06 | theo `secrets.yaml` của HA | Phát IR qua LAN bằng `local_key` |
+
+> `esp32-s3` và `esp32-s3-aiagent` dùng chung một board và hostname — chỉ nạp một trong hai.
+> Khi board chạy firmware micro, service `esphome.esphome_esp32_s3_send_ir_code` không tồn tại;
+> các automation trong `tuya-ir/ha-package-tuya-ir.yaml` vẫn chạy nhờ `continue_on_error: true`.
+
+WiFi của mọi firmware lấy từ `secrets.yaml` (`wifi_ssid`, `wifi_password`) trong từng thư mục —
+file này đã được `.gitignore`, không commit.
+
+### Build / nạp firmware (WSL Debian)
+
+```bash
+# Thay <dir>/<file>.yaml bằng esp-12f/esp-12f.yaml, esp32-s3-aiagent/aiagent.yaml, ...
+wsl -d Debian -e /home/admin/esphome_v2/bin/esphome config  /mnt/d/Working/Projects/hass/<dir>/<file>.yaml
+wsl -d Debian -e /home/admin/esphome_v2/bin/esphome run     /mnt/d/Working/Projects/hass/<dir>/<file>.yaml --device <IP> --no-logs
+wsl -d Debian -e /home/admin/esphome_v2/bin/esphome logs    /mnt/d/Working/Projects/hass/<dir>/<file>.yaml --device <IP>
+```
+
+`run` = validate + compile + nạp OTA. Lần đầu (firmware chưa có `ota:`) phải nạp dây
+`.esphome/build/<name>/build/firmware.factory.bin` qua https://web.esphome.io.
 
 ---
 
-## 1. Giải pháp ESP32-S3 (ESPHome)
+## 1. Trợ lý giọng nói (`esp32-s3-aiagent/`)
+
+```
+INMP441 ──I2S──► ESP32-S3 ──ESPHome API──► HA Assist pipeline "Trợ lý tiếng Việt"
+                                             ├─ STT: Whisper  (Oracle `:10300`, base-int8, vi)
+                                             ├─ Agent: OpenClaw (qua Extended OpenAI Conversation)
+                                             └─ TTS: Piper    (Oracle `:10200`)
+```
+
+HA pipeline hiện vẫn chọn voice `vi_VN-vais1000-medium`, còn Piper trên Oracle đang chạy
+`vi_VN-25hours_single-low` (model tiếng Việt dựa trên Ryan, chất lượng thấp). Hai cấu hình này
+cần được đồng bộ nếu muốn chắc chắn dùng giọng nam.
+
+| File | Nội dung |
+|---|---|
+| `aiagent.yaml` | Micro I2S (WS=GPIO6, SCK=GPIO5, SD=GPIO4), Hey Jarvis, Assist và OTA |
+| `compose.yaml` | Tuỳ chọn chạy Whisper + Piper tại máy đích (host network, giới hạn RAM/CPU); không phải deployment hiện tại trên Oracle |
+| `compat/extended_openai_conversation/manifest.json` | Bản vá cho Extended OpenAI Conversation 2.0.2 chấp nhận `openai` 2.x của HA |
+
+- Bật nghe: `switch.esphome_esp32_s3_nghe_lenh` (mặc định tắt, tự tắt khi mất kết nối HA).
+- Board không có loa; TTS và câu xác nhận wake word phát qua `media_player.tvbox_bluetooth`.
+- `vad_threshold` đã bị ESPHome bỏ, không dùng lại.
+
+`compose.yaml` dùng `network_mode: host` và Wyoming bind `0.0.0.0:10200/10300`. Chỉ triển khai
+trên mạng tin cậy và giới hạn các cổng này bằng firewall; Wyoming không tự xác thực client.
+Compose dùng image tag `latest`; nên pin version/digest và cập nhật có chủ đích để tránh đổi
+phiên bản ngoài dự kiến khi pull/recreate container.
+
+Triển khai Compose tuỳ chọn trên TV Box (không cần chạy khi đang dùng các dịch vụ Oracle):
+
+```powershell
+Get-Content -Raw .\esp32-s3-aiagent\compose.yaml | ssh root@192.168.2.18 'docker compose -p aiagent -f - up -d'
+```
+
+Nếu chuyển Whisper/Piper về TV Box, cập nhật host của các integration Wyoming trong HA sang
+`192.168.2.18`; nếu không, pipeline vẫn dùng dịch vụ trên Oracle.
+
+OpenClaw bật `gateway.http.endpoints.chatCompletions.enabled`, primary `router/voice-router`,
+fallback `google/gemini-3.5-flash-lite`. Trong HA thêm **Extended OpenAI Conversation**:
+Base URL `http://100.92.183.123:18789/v1`,
+API key = OpenClaw gateway token, model `openclaw/default`; rồi chọn agent này trong pipeline.
+
+> Cập nhật Extended OpenAI Conversation qua HACS sẽ ghi đè manifest — chép lại file trong `compat/`
+> rồi restart HA.
+
+### Security
+
+- `secrets.yaml` bị ignore và hiện không có file secrets nào được Git track.
+- ESPHome Native API và OTA trong `aiagent.yaml` chưa cấu hình encryption/password. Chúng chỉ nên
+  dùng trên LAN tin cậy; thêm API encryption và OTA password từ `secrets.yaml` trước khi mở mạng.
+- Firmware IR thử nghiệm bật Web Server port 80 không có xác thực.
+- Voice-router port 8787 là HTTP không xác thực; `router-local` không được router kiểm tra. Oracle
+  hiện bind cả `172.17.0.1` (default Docker bridge) và `172.19.0.1` (OpenClaw bridge). Firewall
+  thêm ACCEPT cho OpenClaw bridge, nhưng INPUT policy mặc định là `ACCEPT`, nên đây chưa phải
+  allowlist. Cần bỏ listener `172.17.0.1` hoặc chặn nó bằng firewall; không publish port 8787 ra LAN/public.
+- Music-stream port 8788 bind all interfaces và không có xác thực; giới hạn bằng firewall cho
+  các client cần dùng. OpenClaw UI/API hiện chỉ bind vào địa chỉ Tailscale.
+
+---
+
+## 2. Hub IR ESP-12F (`esp-12f/`)
+
+- ESP8266, phát IR ở **GPIO13**, thu IR ở **GPIO12**, cảm biến HDC1080 (I2C SDA=GPIO2, SCL=GPIO0).
+- Expose `climate.esphome_hub_ir_dieu_hoa_samsung` (dùng nhiệt độ/độ ẩm HDC1080), proxy IR, và
+  service `esphome.esphome_hub_ir_send_ir_code` (tham số `code`).
+- `esp-12f.init.yaml`: firmware tối giản để nạp lần đầu; `esp-12f.yaml`: firmware đầy đủ.
+- Web server tắt để tiết kiệm RAM ESP8266.
+
+---
+
+## 3. Firmware IR ESP32-S3 — thử nghiệm (`esp32-s3/`)
 
 ### Cấu trúc thư mục
 
@@ -36,44 +133,18 @@ esp32-s3/
   - Khi kích mức LOW, chân `VCC` của module nên cắm vào **3.3V** của ESP32 (thay vì 5V) để mức HIGH từ GPIO ngắt hoàn toàn transistor.
   - Nếu module dùng transistor NPN (`J3Y` / `S8050`), đổi lại `inverted: false` và cắm `VCC` vào 5V.
   - *Mẹo test nhanh:* Rút dây `DAT`, chạm vào `GND` (nếu đèn báo sáng $\rightarrow$ kích LOW) hoặc `VCC` (nếu đèn sáng $\rightarrow$ kích HIGH).
-- **Web Server trực tiếp**: Cấu hình bật `web_server: port: 80`, có thể truy cập thẳng `http://192.168.2.13` qua trình duyệt mà không cần Home Assistant.
+- **Web Server**: firmware này bật `web_server: port: 80` — truy cập `http://192.168.2.13` khi board đang chạy firmware IR.
 
-### Hướng dẫn Build và Nạp (Flash / Update OTA qua WSL)
-
-ESPHome được chạy trong môi trường WSL (Debian) với virtualenv `esphome_v2`.
-
-#### 1. Kiểm tra cấu hình (Validate)
-```bash
-wsl -d Debian -e /home/admin/esphome_v2/bin/esphome config /mnt/d/Working/Projects/hass/esp32-s3/esp32-s3.yaml
-```
-
-#### 2. Biên dịch firmware (Compile)
-```bash
-wsl -d Debian -e /home/admin/esphome_v2/bin/esphome compile /mnt/d/Working/Projects/hass/esp32-s3/esp32-s3.yaml
-```
-Output firmware tạo ra tại: `esp32-s3/.esphome/build/esphome-web-5bc488/build/firmware.factory.bin` (nạp dây qua web.esphome.io hoặc esptool) và `firmware.ota.bin`.
-
-#### 3. Nạp qua WiFi (Update OTA)
-Khi ESP32-S3 đang nối cùng mạng WiFi (mặc định IP ví dụ `192.168.2.13` hoặc qua hostname `esphome-web-5bc488.local`):
-```bash
-wsl -d Debian -e /home/admin/esphome_v2/bin/esphome upload /mnt/d/Working/Projects/hass/esp32-s3/esp32-s3.yaml --device 192.168.2.13
-```
-
-#### 4. Xem log trực tiếp thời gian thực
-```bash
-wsl -d Debian -e /home/admin/esphome_v2/bin/esphome logs /mnt/d/Working/Projects/hass/esp32-s3/esp32-s3.yaml --device 192.168.2.13
-```
-
-### Tích hợp Home Assistant
-1. **Thực thể Climate độc lập**: ESP32-S3 tự động expose thực thể `climate.dieu_hoa_samsung` lên Home Assistant, có đầy đủ các chế độ Cool, Dry, Fan only, Auto và dải nhiệt độ 18–30°C.
-2. **Điều khiển song song với Tuya S06**: Trong file `tuya-ir/ha-package-tuya-ir.yaml`, các automation điều khiển quạt và điều hoà được cấu hình bắn đồng thời cả 2 service:
-   - `tuya_ir.send_code` (Tuya S06)
-   - `esphome.esphome_web_5bc488_send_ir_code` (ESP32-S3)
-   (Có cờ `continue_on_error: true` giúp 1 trong 2 thiết bị mất điện thì thiết bị còn lại vẫn hoạt động bình thường).
+### Tích hợp Home Assistant (khi nạp firmware này)
+1. Expose thực thể climate "Điều Hoà Samsung" (Cool, Dry, Fan only, Auto, 18–30°C) và service
+   `esphome.esphome_esp32_s3_send_ir_code`.
+2. `tuya-ir/ha-package-tuya-ir.yaml` bắn song song `tuya_ir.send_code` và
+   `esphome.esphome_esp32_s3_send_ir_code`, cả hai có `continue_on_error: true`.
+3. `esp32-s3/ha-package-esphome-ir.yaml` là package thay thế chỉ dùng ESP32-S3 (không dùng song song với `tuya_ir.yaml`).
 
 ---
 
-## 2. Giải pháp Tuya Smart IR S06
+## 4. Giải pháp Tuya Smart IR S06 (`tuya-ir/`)
 
 Sau khi lấy `local_key` một lần, mọi lệnh đi thẳng từ Home Assistant tới thiết bị qua LAN — không qua cloud Tuya.
 
@@ -147,12 +218,15 @@ pip install tinytuya && python3 -m tinytuya scan
 ```bash
 cp -r custom_components/tuya_ir /config/custom_components/
 cp ha-package-tuya-ir.yaml /config/packages/tuya_ir.yaml
+```
 
-cat >> /config/secrets.yaml <<EOF
-tuya_ir_device_id: "xxxxxxxxxxxxxxxxxxxxxx"
+Thêm các giá trị sau trực tiếp vào `/config/secrets.yaml` bằng File Editor/VS Code Server.
+Không đưa `local_key` vào lệnh shell, shell history, log hay chat:
+
+```yaml
+tuya_ir_device_id: "..."
 tuya_ir_host: "192.168.1.x"
-tuya_ir_local_key: "xxxxxxxxxxxxxxxx"
-EOF
+tuya_ir_local_key: "..."
 ```
 
 Bật packages trong `/config/configuration.yaml` nếu chưa có:

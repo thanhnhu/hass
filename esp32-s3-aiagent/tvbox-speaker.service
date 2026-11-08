@@ -1,0 +1,17 @@
+[Unit]
+Description=Home Assistant Bluetooth speaker bridge
+After=network.target bluetooth.service
+Wants=bluetooth.service
+
+[Service]
+Type=simple
+User=root
+Environment=XDG_RUNTIME_DIR=/run/user/0
+Environment=PULSE_SERVER=unix:/run/user/0/pulse/native
+ExecStart=/usr/bin/mpd --no-daemon /DATA/AppData/tvbox-speaker/mpd.conf
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

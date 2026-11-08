@@ -1,0 +1,14 @@
+[Unit]
+Description=YouTube search and MP3 stream for voice assistant
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=/usr/bin/python3 /opt/music-stream/music_stream.py
+Restart=always
+RestartSec=5
+DynamicUser=yes
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+
+[Install]
+WantedBy=multi-user.target

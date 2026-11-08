@@ -1,0 +1,87 @@
+language: vi
+intents:
+  DieuHoaBat:
+    data:
+      - sentences:
+          - "(bật|mở) <dieu_hoa>"
+  DieuHoaTat:
+    data:
+      - sentences:
+          - "(tắt|đóng) <dieu_hoa>"
+  DieuHoaNhietDo:
+    data:
+      - sentences:
+          - "[(chỉnh|đặt|để|cho)] <dieu_hoa> [(ở|về|lên|xuống|thành)] {nhiet_do} độ"
+          - "(chỉnh|đặt|để) nhiệt độ [<dieu_hoa>] [(ở|về|lên|xuống|thành)] {nhiet_do} [độ]"
+  DieuHoaTangNhiet:
+    data:
+      - sentences:
+          - "(tăng|nâng) nhiệt độ [<dieu_hoa>] [lên]"
+          - "<dieu_hoa> (lạnh quá|ấm lên)"
+  DieuHoaGiamNhiet:
+    data:
+      - sentences:
+          - "(giảm|hạ) nhiệt độ [<dieu_hoa>] [xuống]"
+          - "<dieu_hoa> (nóng quá|mát hơn|lạnh hơn)"
+  DieuHoaCheDo:
+    data:
+      - sentences:
+          - "(chuyển|chỉnh|để|đặt|bật) <dieu_hoa> [(sang|qua|về)] [chế độ] {che_do}"
+          - "(chuyển|chỉnh|bật) [sang] chế độ {che_do} [<dieu_hoa>]"
+  QuatTangTocDo:
+    data:
+      - sentences:
+          - "(tăng|nâng) [tốc độ] quạt [lên]"
+          - "quạt (mạnh|to) (lên|hơn)"
+  QuatGiamTocDo:
+    data:
+      - sentences:
+          - "(giảm|hạ) [tốc độ] quạt [xuống]"
+          - "quạt (nhẹ|nhỏ|yếu) (lại|xuống|hơn)"
+  QuatXoayBat:
+    data:
+      - sentences:
+          - "(bật|mở|cho) [chế độ] quạt xoay"
+          - "(bật|mở) xoay quạt"
+  QuatXoayTat:
+    data:
+      - sentences:
+          - "(tắt|dừng|ngừng) [chế độ] quạt xoay"
+          - "(tắt|dừng|ngừng) xoay quạt"
+          - "quạt (đứng yên|đừng xoay|không xoay)"
+  MayLocBat:
+    data:
+      - sentences:
+          - "(bật|mở) <may_loc>"
+  MayLocTat:
+    data:
+      - sentences:
+          - "(tắt|đóng) <may_loc>"
+  KhongKhiTrangThai:
+    data:
+      - sentences:
+          - "(bụi mịn|pm 2.5|pm2.5|chất lượng không khí|không khí) [trong phòng] [(thế nào|ra sao|bao nhiêu)]"
+          - "(nhiệt độ|độ ẩm) [trong] phòng [(là|hiện tại)] [(bao nhiêu|thế nào|ra sao)]"
+          - "trong phòng (nóng|ẩm) (không|bao nhiêu)"
+
+lists:
+  nhiet_do:
+    range:
+      from: 18
+      to: 30
+  che_do:
+    values:
+      - in: "lạnh"
+        out: "Lạnh"
+      - in: "(làm lạnh|mát)"
+        out: "Lạnh"
+      - in: "(khô|hút ẩm)"
+        out: "Khô"
+      - in: "quạt"
+        out: "Quạt"
+      - in: "(tự động|auto)"
+        out: "Auto"
+
+expansion_rules:
+  dieu_hoa: "(điều hoà|điều hòa|máy lạnh|máy điều hoà|máy điều hòa)"
+  may_loc: "(máy lọc|máy lọc không khí|máy lọc khí)"

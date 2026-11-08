@@ -1,0 +1,14 @@
+[Unit]
+Description=Voice router (local tools + small local model, Gemini fallback)
+After=network-online.target ollama.service
+Wants=network-online.target
+
+[Service]
+ExecStart=/usr/bin/python3 /opt/voice-router/router.py
+EnvironmentFile=/etc/voice-router.env
+Restart=always
+RestartSec=5
+DynamicUser=yes
+
+[Install]
+WantedBy=multi-user.target
