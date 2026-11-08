@@ -84,6 +84,7 @@ remote_receiver:
       number: GPIO12
       mode:
         input: true
+      inverted: true
     buffer_size: 4kB
     dump:
       - samsung
