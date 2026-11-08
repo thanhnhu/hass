@@ -10,14 +10,27 @@ backup = path.with_name(f'{path.stem}.before-gemini-primary-{timestamp}{path.suf
 shutil.copy2(path, backup)
 provider = config['models']['providers']['ollama']
 provider.update(baseUrl='http://host.docker.internal:11434', api='ollama', timeoutSeconds=10)
-model = provider['models'][0]
+model = next(
+    (item for item in provider['models'] if item.get('id') == 'qwen3.5:4b'),
+    None,
+)
+if model is None:
+    model = {
+        'id': 'qwen3.5:4b',
+        'name': 'Qwen3.5 4B Oracle',
+        'reasoning': False,
+        'input': ['text'],
+        'contextWindow': 8192,
+        'maxTokens': 256,
+    }
+    provider['models'].append(model)
 model.update(contextTokens=8192, maxTokens=256,
              params={'think': False, 'num_ctx': 8192, 'keep_alive': '15m'})
 config['agents']['defaults'].get('experimental', {}).pop('localModelLean', None)
 config['agents']['defaults']['skills'] = []
 config['agents']['defaults']['model'] = {
     'primary': 'google/gemini-3.5-flash-lite',
-    'fallbacks': ['ollama/qwen3:1.7b'],
+    'fallbacks': ['ollama/qwen3.5:4b'],
 }
 tools = config.setdefault('tools', {})
 tools['profile'] = 'minimal'
@@ -44,8 +57,12 @@ config['models']['providers']['router'] = {
 }
 model_allow = config['agents']['defaults'].get('modelPolicy', {}).get('allow')
 if isinstance(model_allow, list):
-    for model_id in ('google/gemini-3.5-flash-lite', 'ollama/qwen3:1.7b'):
+    for model_id in (
+        'google/gemini-3.5-flash-lite',
+        'ollama/qwen3:1.7b',
+        'ollama/qwen3.5:4b',
+    ):
         if model_id not in model_allow:
             model_allow.append(model_id)
 path.write_text(json.dumps(config, ensure_ascii=False, indent=2) + '\n')
-print('Configured Gemini primary, Ollama fallback, and retained the minimal tool/skill profile.')
+print('Configured Gemini primary, Qwen3.5:4B Ollama fallback, and retained the minimal tool/skill profile.')

@@ -1,0 +1,22 @@
+[Unit]
+Description=Colibri Qwen3 1.7B local inference server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/opt/colibri/c
+Environment=OMP_NUM_THREADS=4
+ExecStart=/opt/colibri/c/coli serve --model /opt/colibri/models/qwen3-1.7b-colibri --host 127.0.0.1 --port 8001 --model-id qwen3-1.7b-colibri --ctx 4096 --ngen 128 --no-think
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/colibri/models/qwen3-1.7b-colibri
+
+[Install]
+WantedBy=multi-user.target
