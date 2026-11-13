@@ -1,0 +1,14 @@
+[Unit]
+Description=Proxmox host network failover (nic0 <-> wlp2s0)
+After=networking.service wpa_supplicant@wlp2s0.service
+Wants=networking.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/sbin/net-failover.sh
+ExecStopPost=/usr/local/sbin/net-failover.sh restore
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
